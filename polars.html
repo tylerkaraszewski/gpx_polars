@@ -135,10 +135,14 @@
         // Translate it so that the origin is in the middle.
         ctx.translate(1, 1);
 
-        ctx.fillRect(-1, -1, .05, .05);
-        ctx.fillRect(-1, .95, .05, .05);
-        ctx.fillRect(.95, -1, .05, .05);
-        ctx.fillRect(.95, .95, .05, .05);
+        // Flip the Y-axis.
+        ctx.scale(1, -1);
+
+        // Testing the registration on my transformations.
+        ctx.fillRect(-1, .95, .05, .05); // Top left corner.
+        ctx.fillRect(-1, -1, .05, .05); // Bottom left corner.
+        ctx.fillRect(.95, .95, .05, .05); // Top right corner.
+        ctx.fillRect(.95, -1, .05, .05); // Bottom right corner.
     }
 
     // Copied from: https://www.movable-type.co.uk/scripts/latlong.html
