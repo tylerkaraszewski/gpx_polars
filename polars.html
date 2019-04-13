@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GPX to Polars</title>
+<script type="text/javascript">
+    var gpx;
+
+    // This is all of the speeds we have for any given angle, where the angles are in 3 degree buckets (so there are
+    // 120 of them).
+    var buckets = [];
+    for (var i = 0; i < 120; i++) {
+        buckets.push([]);
+    }
+
+    window.onload = function() {
+        var jsonFileInput = document.getElementById("gpx");
+        jsonFileInput.addEventListener("change", handleFiles, false);
+        function handleFiles() {
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    var parser = new DOMParser();
+                    gpx = parser.parseFromString(reader.result, "application/xml");
+                    document.getElementById("loadingScreen").className = "hidden";
+                    loadComplete();
+                } catch (e) {
+                    console.warn(e);
+                }
+            };
+            reader.readAsText(jsonFileInput.files[0]);
+        }
+    }
+
+    function loadComplete() {
+        var trks = gpx.getElementsByTagName("trk");
+        if (trks.length != 1) {
+            console.warn("Unexpected number of tracks");
+            return;
+        }
+        var trksegs = trks[0].getElementsByTagName("trkseg");
+        if (trks.length > 1) {
+            console.warn("Unexpected number of track segments, only using the first one.");
+        }
+        if (trks.length == 0) {
+            console.warn("No track segments.");
+            return;
+        }
+
+        // Ok, this is hopefully usable.
+        var trkseg = trksegs[0];
+
+        // Now we'll start iterating all of our points.
+        var current = trkseg.firstElementChild;
+        var previous = null;
+        while (current) {
+            // Make sure this looks correct.
+            if (current.nodeName !== "trkpt") {
+                console.warn("Invalid node, skipping.", current);
+                continue;
+            }
+
+            // Parse the useful information out of our point.
+            var parsed = {};
+            var lat = parseFloat(current.getAttribute("lat"));
+            var lon = parseFloat(current.getAttribute("lon"));
+            var time;
+            try {
+                // TODO: This is apparently frowned upon, but it's working with Garmin's date stamps and my Firefox.
+                time = Date.parse(current.getElementsByTagName("time")[0].innerHTML);
+            } catch (e) {
+                console.warn("Couldn't parse time for element, skipping.", current);
+                continue;
+            }
+            parsed.lat = lat;
+            parsed.lon = lon;
+            parsed.time = time;
+
+            // If we haven't set the previous node yet, we can't go on to the next without doing anything else.
+            if (previous) {
+
+                // Now we have a parsed object, and a previous parsed object, we need to find:
+                // 1. Distance.
+                // 2. Speed.
+                // 3. Bearing.
+                // 4. Time elapsed.
+
+                var elapsedTime = parsed.time - previous.time;
+                var distanceMeters = getDistanceInMeters(previous.lat, previous.lon, parsed.lat, parsed.lon);
+                var distanceNM = distanceMeters / 1852;
+                var speedKnots = (distanceMeters / 1852) / ((elapsedTime / 1000) / (60 * 60));
+                var bearing = getBearingInDegrees(previous.lat, previous.lon, parsed.lat, parsed.lon);
+
+                // Now save this data.
+                var index = (Math.floor(Math.floor(bearing + 0.5) / 3)) % buckets.length;
+                buckets[index].push(speedKnots);
+            }
+            // And move on to the next one.
+            previous = parsed;
+            current = current.nextElementSibling;
+        }
+
+        postProcess();
+    }
+
+    function postProcess() {
+        var best = [];
+        for (var i = 0; i < buckets.length; i++) {
+            var array = buckets[i];
+            array.sort(function(a, b){return a < b});
+            var top3 = array.slice(0, 3);
+            if (top3.length == 0) {
+                top3.push(0);
+            }
+            var sum = 0;
+            for (var j = 0; j < top3.length; j++) {
+                sum += top3[j];
+            }
+            sum /= top3.length;
+            best.push(sum);
+            console.log(i * 3, sum);
+        }
+
+        draw(best);
+    }
+
+    function draw(speeds) {
+        var count = speeds.length;
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+
+        // Scale the canvas to fit a unit circle. 600 is the magic number specified in the size/width of the element.
+        ctx.scale(600 / 2, 600 / 2);
+
+        // Translate it so that the origin is in the middle.
+        ctx.translate(1, 1);
+
+        ctx.fillRect(-1, -1, .05, .05);
+        ctx.fillRect(-1, .95, .05, .05);
+        ctx.fillRect(.95, -1, .05, .05);
+        ctx.fillRect(.95, .95, .05, .05);
+    }
+
+    // Copied from: https://www.movable-type.co.uk/scripts/latlong.html
+    function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+        var R = 6371e3; // metres
+        var φ1 = lat1 * (Math.PI / 180);
+        var φ2 = lat2 * (Math.PI / 180);
+        var Δφ = (lat2-lat1) * (Math.PI / 180);
+        var Δλ = (lon2-lon1) * (Math.PI / 180);
+
+        var a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        var d = R * c;
+
+        return d;
+    }
+    function getBearingInDegrees(lat1, lon1, lat2, lon2) {
+        var φ1 = lat1 * (Math.PI / 180);
+        var λ1 = lon1 * (Math.PI / 180);
+        var φ2 = lat2 * (Math.PI / 180);
+        var λ2 = lon2 * (Math.PI / 180);
+        var y = Math.sin(λ2-λ1) * Math.cos(φ2);
+        var x = Math.cos(φ1)*Math.sin(φ2) -
+                Math.sin(φ1)*Math.cos(φ2)*Math.cos(λ2-λ1);
+        var brng = Math.atan2(y, x) * (180 / Math.PI);
+
+        return (brng + 360) % 360;
+    }
+
+</script>
+<style type="text/css">
+.hidden {
+    display: none;
+}
+#canvas {
+    border: 1px solid gray;
+}
+</style>
+</head>
+<body>
+    <div id="loadingScreen">
+        <h1>Load a GPX File</h1>
+        <input type="file" id="gpx">
+    </div>
+    <canvas id="canvas" width="600" height="600"></canvas>
+</body>
+</html>
