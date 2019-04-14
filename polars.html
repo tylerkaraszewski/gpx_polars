@@ -27,7 +27,7 @@
 
         // Set up the file loader.
         var jsonFileInput = document.getElementById("gpx");
-        jsonFileInput.addEventListener("input", handleFiles, false);
+        jsonFileInput.addEventListener("change", handleFiles, false);
         function handleFiles() {
             var reader = new FileReader();
             reader.onload = function(evt) {
