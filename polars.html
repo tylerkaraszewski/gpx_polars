@@ -118,7 +118,7 @@
     function postProcess() {
         for (var i = 0; i < buckets.length; i++) {
             var array = buckets[i];
-            array.sort(function(a, b){return a < b});
+            array.sort(function(a, b){return b - a});
             var top3 = array.slice(0, 3);
             if (top3.length == 0) {
                 top3.push(0);
