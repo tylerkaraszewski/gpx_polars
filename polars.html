@@ -134,6 +134,16 @@
         draw();
     }
 
+    // https://stackoverflow.com/questions/7570808/how-do-i-calculate-the-difference-of-two-angle-measures/30887154
+    function angleFromWind(heading, wind) {
+        var phi = Math.abs(heading - wind) % 360;
+        var angleOffTheWind = phi > 180 ? 360 - phi : phi;
+        if (angleOffTheWind > 90) {
+            angleOffTheWind = 180 - angleOffTheWind;
+        }
+        return angleOffTheWind;
+    }
+
     function draw() {
         // If there's no speed data (because someone dragged the slider before loading a file), there's nothing to
         if (!bestSpeeds.length) {
@@ -161,8 +171,10 @@
             document.getElementById('canvas_container').appendChild(canvas);
         }
         var ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Save in the default, just created stated.
         ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Scale the canvas to fit a unit circle. 1200 is the magic number specified in the size/width of the element.
         ctx.scale(1200 / 2, 1200 / 2);
@@ -182,10 +194,26 @@
         for (var i = 1; i < count; i++) {
             ctx.rotate((Math.PI / 180) * -3);
             ctx.lineTo(0, bestSpeeds[i] / max);
-            console.log(bestSpeeds[i] / max);
         }
         ctx.closePath();
-        ctx.fillStyle = 'rgba(148, 148, 224, 1)';
+        ctx.fillStyle = 'rgba(128, 148, 224, 1)';
+        ctx.fill();
+        ctx.rotate((Math.PI / 180) * -1.5);
+        ctx.restore();
+
+        // Same thing again, but for VMG.
+        ctx.save()
+        ctx.rotate((Math.PI / 180) * (-1.5 + angle));
+        ctx.beginPath();
+        var compassAngle = 1.5;
+        ctx.moveTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
+        for (var i = 1; i < count; i++) {
+            ctx.rotate((Math.PI / 180) * -3);
+            compassAngle += 3;
+            ctx.lineTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(224, 148, 128, 1)';
         ctx.fill();
         ctx.rotate((Math.PI / 180) * -1.5);
         ctx.restore();
@@ -221,6 +249,9 @@
             var textWidth = ctx.measureText(label).width;
             ctx.fillText(label, ((i / max) * 1000) - textWidth - 10, 0);
         }
+        ctx.restore();
+
+        // Put it back to the original.
         ctx.restore();
     }
 
