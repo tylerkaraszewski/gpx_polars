@@ -13,9 +13,21 @@
         buckets.push([]);
     }
 
+    // This is the best speeds for each bucket, which is the average of the top three in each bucket.
+    var bestSpeeds = [];
+
     window.onload = function() {
+        // Set up the slider.
+        var angleSlider = document.getElementById("angle");
+        document.getElementById("current_angle").innerHTML = "Current Angle: " + angleSlider.value;
+        angleSlider.addEventListener("change", function(){
+            document.getElementById("current_angle").innerHTML = "Current Angle: " + angleSlider.value;
+            draw();
+        }, false);
+
+        // Set up the file loader.
         var jsonFileInput = document.getElementById("gpx");
-        jsonFileInput.addEventListener("change", handleFiles, false);
+        jsonFileInput.addEventListener("input", handleFiles, false);
         function handleFiles() {
             var reader = new FileReader();
             reader.onload = function(evt) {
@@ -104,7 +116,6 @@
     }
 
     function postProcess() {
-        var best = [];
         for (var i = 0; i < buckets.length; i++) {
             var array = buckets[i];
             array.sort(function(a, b){return a < b});
@@ -117,19 +128,26 @@
                 sum += top3[j];
             }
             sum /= top3.length;
-            best.push(sum);
+            bestSpeeds.push(sum);
         }
 
-        draw(best);
+        draw();
     }
 
-    function draw(speeds) {
-        var count = speeds.length;
+    function draw() {
+        // If there's no speed data (because someone dragged the slider before loading a file), there's nothing to
+        if (!bestSpeeds.length) {
+            return;
+        }
+
+        // Get the angle the slider is set to.
+        var angle = parseFloat(document.getElementById("angle").value);
+        var count = bestSpeeds.length;
 
         var max = 0;
         for (var i = 0; i < count; i++) {
-            if (speeds[i] > max) {
-                max = speeds[i];
+            if (bestSpeeds[i] > max) {
+                max = bestSpeeds[i];
             }
         }
         max = Math.ceil(max) + 2;
@@ -148,7 +166,7 @@
 
         // Scale the canvas to fit a unit circle. 1200 is the magic number specified in the size/width of the element.
         ctx.scale(1200 / 2, 1200 / 2);
-        ctx.lineWidth = 1 / 1200;
+        ctx.lineWidth = 2 / 1200;
 
         // Translate it so that the origin is in the middle.
         ctx.translate(1, 1);
@@ -156,13 +174,43 @@
         // Flip the Y-axis.
         ctx.scale(1, -1);
 
+        // Actually draw the main polar shape. We do this first so the labels go over it.
+        ctx.save()
+        ctx.rotate((Math.PI / 180) * (-1.5 + angle));
+        ctx.beginPath();
+        ctx.moveTo(0, bestSpeeds[0] / max);
+        for (var i = 1; i < count; i++) {
+            ctx.rotate((Math.PI / 180) * -3);
+            ctx.lineTo(0, bestSpeeds[i] / max);
+            console.log(bestSpeeds[i] / max);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(148, 148, 224, 1)';
+        ctx.fill();
+        ctx.rotate((Math.PI / 180) * -1.5);
+        ctx.restore();
+
+        // Draw some angle lines.
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.beginPath();
+        for (var i = 0; i < 6; i++) {
+            ctx.moveTo(-1, 0);
+            ctx.lineTo(1, 0);
+            ctx.stroke();
+            ctx.rotate((Math.PI / 180) * (30));
+        }
+        ctx.restore();
+
         // Draw some circles with labels.
+        // NOTE: We scale everything by 1/100th for this, because the fonts won't draw correctly in tiny fractional
+        // sizes.
         ctx.save();
         ctx.scale(1, -1);
         ctx.scale(1/1000, 1/1000);
         ctx.lineWidth = ctx.lineWidth * 1000;
-        ctx.textBaseline = 'middle';
-        // TODO: The labels don't seem to work with this unit circle scaling.
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.textBaseline = 'bottom';
         ctx.font = '36px sans-serif';
         for (var i = 2; i < max; i += 2) {
             ctx.beginPath();
@@ -174,24 +222,6 @@
             ctx.fillText(label, ((i / max) * 1000) - textWidth - 10, 0);
         }
         ctx.restore();
-
-        // Actually draw the main polar shape.
-        ctx.rotate((Math.PI / 180) * -1.5);
-        ctx.beginPath();
-        ctx.moveTo(0, speeds[0] / max);
-        for (var i = 1; i < count; i++) {
-            ctx.rotate((Math.PI / 180) * -3);
-            ctx.lineTo(0, speeds[i] / max);
-            console.log(speeds[i] / max);
-        }
-        ctx.closePath();
-        //ctx.stroke();
-        ctx.fillStyle = 'rgba(0, 0, 128, 0.25)';
-        ctx.fill();
-        ctx.rotate((Math.PI / 180) * -1.5);
-
-        ctx.restore();
-
     }
 
     // Copied from: https://www.movable-type.co.uk/scripts/latlong.html
@@ -225,6 +255,9 @@
 
 </script>
 <style type="text/css">
+html {
+    font-family: sans-serif;
+}
 .hidden {
     display: none;
 }
@@ -233,7 +266,6 @@
     height: 600px;
 }
 #wind_angle h1 {
-    font-family: sans-serif;
     font-weight: bold;
     font-size: 16px;
     margin: 0;
@@ -241,7 +273,6 @@
     padding: 0;
 }
 #wind_angle > span {
-    font-family: sans-serif;
     font-size: 16px;
     display: inline-box;
     position: relative;
@@ -349,7 +380,8 @@ input[type=range]:focus::-ms-fill-upper {
     </div>
     <div id="wind_angle">
         <h1>Wind Angle (in degrees, default is south)</h1>
-        <span>0</span> <input type="range" min="0" max="359.9" step="0.1"></input> <span>360</span>
+        <span>0</span> <input id="angle" type="range" min="0" max="360" step="0.5"></input> <span>360</span>
+        <div id="current_angle"></div>
     </div>
     <div id="canvas_container"><canvas id="canvas" width="1200" height="1200"></canvas></div>
 </body>
