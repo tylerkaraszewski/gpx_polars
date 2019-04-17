@@ -69,6 +69,7 @@
             // Make sure this looks correct.
             if (current.nodeName !== "trkpt") {
                 console.warn("Invalid node, skipping.", current);
+                current = current.nextElementSibling;
                 continue;
             }
 
@@ -82,6 +83,7 @@
                 time = Date.parse(current.getElementsByTagName("time")[0].innerHTML);
             } catch (e) {
                 console.warn("Couldn't parse time for element, skipping.", current);
+                current = current.nextElementSibling;
                 continue;
             }
             parsed.lat = lat;
