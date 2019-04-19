@@ -4,17 +4,32 @@
 <meta charset="utf-8">
 <title>GPX to Polars</title>
 <script type="text/javascript">
-    var gpx;
+    var gpx1, gpx2;
 
-    // This is all of the speeds we have for any given angle, where the angles are in 3 degree buckets (so there are
-    // 120 of them).
-    var buckets = [];
-    for (var i = 0; i < 120; i++) {
-        buckets.push([]);
+    // Use integers between 1 and 6, inclusive.
+    var bucketDegreeIncrement = 3;
+    var buckets1;
+    var buckets2;
+    var bestSpeeds1 = [];
+    var bestSpeeds2 = [];
+
+    function initBucketsAndSpeeds(which) {
+        if (which == 1) {
+            buckets1 = [];
+            bestSpeeds1 = [];
+            for (var i = 0; i < (360 / bucketDegreeIncrement); i++) {
+                buckets1.push([]);
+            }
+        } else {
+            buckets2 = [];
+            bestSpeeds2 = [];
+            for (var i = 0; i < (360 / bucketDegreeIncrement); i++) {
+                buckets2.push([]);
+            }
+        }
     }
 
     // This is the best speeds for each bucket, which is the average of the top three in each bucket.
-    var bestSpeeds = [];
 
     window.onload = function() {
         // Set up the slider.
@@ -25,29 +40,62 @@
             draw();
         }, false);
 
-        // Set up the file loader.
-        var jsonFileInput = document.getElementById("gpx");
-        jsonFileInput.addEventListener("change", handleFiles, false);
-        function handleFiles() {
+        // Set up the file loaders.
+        var jsonFileInput1 = document.getElementById("gpx1");
+        var jsonFileInput2 = document.getElementById("gpx2");
+        jsonFileInput1.addEventListener("change", handleFiles, false);
+        jsonFileInput2.addEventListener("change", handleFiles, false);
+        function handleFiles(e) {
             var reader = new FileReader();
-            reader.onload = function(evt) {
+            reader.onload = function() {
                 try {
                     var parser = new DOMParser();
-                    gpx = parser.parseFromString(reader.result, "application/xml");
-                    document.getElementById("loadingScreen").className = "hidden";
-                    loadComplete();
+                    if (e.target.id == "gpx1") {
+                        gpx1 = parser.parseFromString(reader.result, "application/xml");
+                    } else {
+                        gpx2 = parser.parseFromString(reader.result, "application/xml");
+                    }
+                    loadComplete(e.target.id);
                 } catch (e) {
                     console.warn(e);
                 }
             };
-            reader.readAsText(jsonFileInput.files[0]);
+            reader.readAsText(e.target.files[0]);
         }
+
+        document.getElementById("advanced_settings_toggle").addEventListener("click", function() {
+            if (document.getElementById("advanced_settings").style.display == "") {
+                document.getElementById("advanced_settings").style.display = "none";
+                document.getElementById("advanced_settings_toggle").innerHTML =
+                document.getElementById("advanced_settings_toggle").innerHTML.replace(/\-/, "+");
+            } else {
+                document.getElementById("advanced_settings").style.display = "";
+                document.getElementById("advanced_settings_toggle").innerHTML =
+                document.getElementById("advanced_settings_toggle").innerHTML.replace(/\+/, "-");
+            }
+        }, false);
+
+        document.getElementById("bucket_size").addEventListener("change", function() {
+            bucketDegreeIncrement = Math.floor(document.getElementById("bucket_size").value);
+            loadComplete("gpx1");
+            loadComplete("gpx2");
+        }, false);
     }
 
-    function loadComplete() {
-        var trks = gpx.getElementsByTagName("trk");
-        if (trks.length != 1) {
+    function loadComplete(targetName) {
+        var trks;
+        if (targetName == "gpx1") {
+            trks = gpx1.getElementsByTagName("trk");
+            initBucketsAndSpeeds(1);
+        } else {
+            trks = gpx2.getElementsByTagName("trk");
+            initBucketsAndSpeeds(2);
+        }
+        if (trks.length !== 0 && trks.length !== 1) {
             console.warn("Unexpected number of tracks");
+            return;
+        }
+        if (trks.length === 0) {
             return;
         }
         var trksegs = trks[0].getElementsByTagName("trkseg");
@@ -106,20 +154,29 @@
                 var bearing = getBearingInDegrees(previous.lat, previous.lon, parsed.lat, parsed.lon);
 
                 // Now save this data.
-                var index = (Math.floor(Math.floor(bearing + 0.5) / 3)) % buckets.length;
-                buckets[index].push(speedKnots);
+                var index = (Math.floor(Math.floor(bearing + 0.5) / bucketDegreeIncrement)) % buckets1.length;
+                if (targetName == "gpx1") {
+                    buckets1[index].push(speedKnots);
+                } else {
+                    buckets2[index].push(speedKnots);
+                }
             }
             // And move on to the next one.
             previous = parsed;
             current = current.nextElementSibling;
         }
 
-        postProcess();
+        postProcess(targetName);
     }
 
-    function postProcess() {
-        for (var i = 0; i < buckets.length; i++) {
-            var array = buckets[i];
+    function postProcess(targetName) {
+        for (var i = 0; i < buckets1.length; i++) {
+            var array;
+            if (targetName == "gpx1") {
+                array = buckets1[i];
+            } else {
+                array = buckets2[i];
+            }
             array.sort(function(a, b){return b - a});
             var top3 = array.slice(0, 3);
             if (top3.length == 0) {
@@ -130,7 +187,11 @@
                 sum += top3[j];
             }
             sum /= top3.length;
-            bestSpeeds.push(sum);
+            if (targetName == "gpx1") {
+                bestSpeeds1.push(sum);
+            } else {
+                bestSpeeds2.push(sum);
+            }
         }
 
         draw();
@@ -148,18 +209,22 @@
 
     function draw() {
         // If there's no speed data (because someone dragged the slider before loading a file), there's nothing to
-        if (!bestSpeeds.length) {
+        if (!bestSpeeds1.length && !bestSpeeds2.length) {
             return;
         }
 
         // Get the angle the slider is set to.
         var angle = parseFloat(document.getElementById("angle").value);
-        var count = bestSpeeds.length;
 
+        // Find the highest speed.
+        var count = Math.max(bestSpeeds1.length, bestSpeeds2.length);
         var max = 0;
         for (var i = 0; i < count; i++) {
-            if (bestSpeeds[i] > max) {
-                max = bestSpeeds[i];
+            if (bestSpeeds1.length && bestSpeeds1[i] > max) {
+                max = bestSpeeds1[i];
+            }
+            if (bestSpeeds2.length && bestSpeeds2[i] > max) {
+                max = bestSpeeds2[i];
             }
         }
         max = Math.ceil(max) + 2;
@@ -189,36 +254,62 @@
         ctx.scale(1, -1);
 
         // Actually draw the main polar shape. We do this first so the labels go over it.
-        ctx.save()
-        ctx.rotate((Math.PI / 180) * (-1.5 + angle));
-        ctx.beginPath();
-        ctx.moveTo(0, bestSpeeds[0] / max);
-        for (var i = 1; i < count; i++) {
-            ctx.rotate((Math.PI / 180) * -3);
-            ctx.lineTo(0, bestSpeeds[i] / max);
-        }
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(128, 148, 224, 1)';
-        ctx.fill();
-        ctx.rotate((Math.PI / 180) * -1.5);
-        ctx.restore();
+        for (var outline = 0; outline < 2; outline++) {
+            var bestSpeeds;
+            if (outline == 0) {
+                bestSpeeds = bestSpeeds1;
+            } else {
+                bestSpeeds = bestSpeeds2;
+            }
+            if (bestSpeeds.length === 0) {
+                // Skip any undefined sections.
+                continue;
+            }
+            ctx.save()
+            ctx.rotate((Math.PI / 180) * (-0.5 * bucketDegreeIncrement + angle));
+            ctx.beginPath();
+            ctx.moveTo(0, bestSpeeds[0] / max);
+            for (var i = 1; i < count; i++) {
+                ctx.rotate((Math.PI / 180) * -1 * bucketDegreeIncrement);
+                ctx.lineTo(0, bestSpeeds[i] / max);
+            }
+            ctx.closePath();
+            if (outline == 0) {
+                ctx.fillStyle = 'rgba(128, 148, 224, 1)';
+                ctx.fill();
+            } else {
+                ctx.setLineDash([0.01, 0.01]);
+                ctx.lineWidth = ctx.lineWidth * 1.5;//2 / 1200;
+                ctx.strokeStyle = 'rgba(30, 30, 255, 1)';
+                ctx.stroke();
+            }
+            ctx.rotate((Math.PI / 180) * -0.5 * bucketDegreeIncrement);
+            ctx.restore();
 
-        // Same thing again, but for VMG.
-        ctx.save()
-        ctx.rotate((Math.PI / 180) * (-1.5 + angle));
-        ctx.beginPath();
-        var compassAngle = 1.5;
-        ctx.moveTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
-        for (var i = 1; i < count; i++) {
-            ctx.rotate((Math.PI / 180) * -3);
-            compassAngle += 3;
-            ctx.lineTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
+            // Same thing again, but for VMG.
+            ctx.save()
+            ctx.rotate((Math.PI / 180) * (-0.5 * bucketDegreeIncrement + angle));
+            ctx.beginPath();
+            var compassAngle = 0.5 * bucketDegreeIncrement;
+            ctx.moveTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
+            for (var i = 1; i < count; i++) {
+                ctx.rotate((Math.PI / 180) * -1 * bucketDegreeIncrement);
+                compassAngle += bucketDegreeIncrement;
+                ctx.lineTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
+            }
+            ctx.closePath();
+            if (outline == 0) {
+                ctx.fillStyle = 'rgba(224, 148, 128, 1)';
+                ctx.fill();
+            } else {
+                ctx.setLineDash([0.01, 0.01]);
+                ctx.lineWidth = ctx.lineWidth * 1.5;//2 / 1200;
+                ctx.strokeStyle = 'rgba(255, 30, 30, 1)';
+                ctx.stroke();
+            }
+            ctx.rotate((Math.PI / 180) * -0.5 * bucketDegreeIncrement);
+            ctx.restore();
         }
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(224, 148, 128, 1)';
-        ctx.fill();
-        ctx.rotate((Math.PI / 180) * -1.5);
-        ctx.restore();
 
         // Draw some angle lines.
         ctx.save();
@@ -300,9 +391,9 @@ html {
 }
 #wind_angle h1 {
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     margin: 0;
-    margin-top: 10px;
+    margin-top: 16px;
     padding: 0;
 }
 #wind_angle > span {
@@ -310,6 +401,22 @@ html {
     display: inline-box;
     position: relative;
     bottom: 11px;
+}
+.gpx_label {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 2px;
+    margin-top: 16px;
+}
+
+#advanced_settings {
+    padding: 6px;
+    border: 1px solid black;
+    background-color: #EEE;
+    max-width: 600px;
+}
+#advanced_settings_toggle:hover {
+    cursor: pointer;
 }
 /*
 All this shit taken from:
@@ -407,9 +514,14 @@ input[type=range]:focus::-ms-fill-upper {
 </style>
 </head>
 <body>
-    <div id="loadingScreen">
-        <h1>Load a GPX File</h1>
-        <input type="file" id="gpx">
+    <div>
+         <div class="gpx_label">Primary GPX file (drawn in solid colors)</div><input type="file" id="gpx1">
+        <br>
+        <div class="gpx_label">Secondary GPX file (drawn in dotted lines)</div> <input type="file" id="gpx2"> 
+        <div class="gpx_label" id="advanced_settings_toggle">Advanced Settings [+]</div>
+        <div class="advanced_settings" id="advanced_settings" style="display:none">
+            <input type="number" id="bucket_size" min="1" value="3" max="6"></input> Degrees per segment (integers, 1-6)
+        </div>
     </div>
     <div id="wind_angle">
         <h1>Wind Angle (in degrees, default is south)</h1>
