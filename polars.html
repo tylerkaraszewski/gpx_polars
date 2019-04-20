@@ -8,8 +8,9 @@
 
     // Use integers between 1 and 6, inclusive.
     var bucketDegreeIncrement = 3;
-    var buckets1;
-    var buckets2;
+    var directionTimeIntervalSecs = 3;
+    var buckets1 = [];
+    var buckets2 = [];
     var bestSpeeds1 = [];
     var bestSpeeds2 = [];
 
@@ -80,6 +81,12 @@
             loadComplete("gpx1");
             loadComplete("gpx2");
         }, false);
+
+        document.getElementById("seconds_course").addEventListener("change", function() {
+            directionTimeIntervalSecs = Math.floor(document.getElementById("seconds_course").value);
+            loadComplete("gpx1");
+            loadComplete("gpx2");
+        }, false);
     }
 
     function loadComplete(targetName) {
@@ -112,7 +119,8 @@
 
         // Now we'll start iterating all of our points.
         var current = trkseg.firstElementChild;
-        var previous = null;
+        //var previous = null;
+        var parsedList = [];
         while (current) {
             // Make sure this looks correct.
             if (current.nodeName !== "trkpt") {
@@ -137,33 +145,45 @@
             parsed.lat = lat;
             parsed.lon = lon;
             parsed.time = time;
+            parsedList.push(parsed);
 
-            // If we haven't set the previous node yet, we can't go on to the next without doing anything else.
-            if (previous) {
-
-                // Now we have a parsed object, and a previous parsed object, we need to find:
-                // 1. Distance.
-                // 2. Speed.
-                // 3. Bearing.
-                // 4. Time elapsed.
-
-                var elapsedTime = parsed.time - previous.time;
-                var distanceMeters = getDistanceInMeters(previous.lat, previous.lon, parsed.lat, parsed.lon);
-                var distanceNM = distanceMeters / 1852;
-                var speedKnots = (distanceMeters / 1852) / ((elapsedTime / 1000) / (60 * 60));
-                var bearing = getBearingInDegrees(previous.lat, previous.lon, parsed.lat, parsed.lon);
-
-                // Now save this data.
-                var index = (Math.floor(Math.floor(bearing + 0.5) / bucketDegreeIncrement)) % buckets1.length;
-                if (targetName == "gpx1") {
-                    buckets1[index].push(speedKnots);
-                } else {
-                    buckets2[index].push(speedKnots);
-                }
-            }
-            // And move on to the next one.
-            previous = parsed;
             current = current.nextElementSibling;
+        }
+
+        // Now that we have a list of points, sort them into buckets.
+        for (var i = 0; i < parsedList.length; i++) {
+            try {
+                current = parsedList[i];
+                var distance = 1;
+                while (i + distance < parsedList.length) {
+                    target = parsedList[i + distance];
+                    if (target.time >= current.time + directionTimeIntervalSecs * 1000) {
+                        // It's been enough time to count this segment.
+                        var elapsedTime = target.time - current.time;
+                        var distanceMeters = getDistanceInMeters(current.lat, current.lon, target.lat, target.lon);
+                        var distanceNM = distanceMeters / 1852;
+                        var speedKnots = (distanceMeters / 1852) / ((elapsedTime / 1000) / (60 * 60));
+                        var bearing = getBearingInDegrees(current.lat, current.lon, target.lat, target.lon);
+
+                        // Now save this data.
+                        var index = (Math.floor(Math.floor(bearing + 0.5) / bucketDegreeIncrement)) % Math.max(buckets1.length, buckets2.length);
+                        if (targetName == "gpx1") {
+                            buckets1[index].push(speedKnots);
+                        } else {
+                            buckets2[index].push(speedKnots);
+                        }
+
+                        // Done, on to the next.
+                        break;
+                    }
+                    distance++;
+                }
+            } catch (e) {
+                console.warn(e);
+                // Whatever, we busted the end of the array, go on to the next one.
+                continue;
+            }
+
         }
 
         postProcess(targetName);
@@ -178,6 +198,7 @@
                 array = buckets2[i];
             }
             array.sort(function(a, b){return b - a});
+
             var top3 = array.slice(0, 3);
             if (top3.length == 0) {
                 top3.push(0);
@@ -521,6 +542,8 @@ input[type=range]:focus::-ms-fill-upper {
         <div class="gpx_label" id="advanced_settings_toggle">Advanced Settings [+]</div>
         <div class="advanced_settings" id="advanced_settings" style="display:none">
             <input type="number" id="bucket_size" min="1" value="3" max="6"></input> Degrees per segment (integers, 1-6)
+            <br>
+            <input type="number" id="seconds_course" min="1" value="3" max="9"></input> Minimum seconds on course to count (integers, 1-9)
         </div>
     </div>
     <div id="wind_angle">
