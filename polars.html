@@ -152,38 +152,31 @@
 
         // Now that we have a list of points, sort them into buckets.
         for (var i = 0; i < parsedList.length; i++) {
-            try {
-                current = parsedList[i];
-                var distance = 1;
-                while (i + distance < parsedList.length) {
-                    target = parsedList[i + distance];
-                    if (target.time >= current.time + directionTimeIntervalSecs * 1000) {
-                        // It's been enough time to count this segment.
-                        var elapsedTime = target.time - current.time;
-                        var distanceMeters = getDistanceInMeters(current.lat, current.lon, target.lat, target.lon);
-                        var distanceNM = distanceMeters / 1852;
-                        var speedKnots = (distanceMeters / 1852) / ((elapsedTime / 1000) / (60 * 60));
-                        var bearing = getBearingInDegrees(current.lat, current.lon, target.lat, target.lon);
+            current = parsedList[i];
+            var distance = 1;
+            while (i + distance < parsedList.length) {
+                target = parsedList[i + distance];
+                if (target.time >= current.time + directionTimeIntervalSecs * 1000) {
+                    // It's been enough time to count this segment.
+                    var elapsedTime = target.time - current.time;
+                    var distanceMeters = getDistanceInMeters(current.lat, current.lon, target.lat, target.lon);
+                    var distanceNM = distanceMeters / 1852;
+                    var speedKnots = (distanceMeters / 1852) / ((elapsedTime / 1000) / (60 * 60));
+                    var bearing = getBearingInDegrees(current.lat, current.lon, target.lat, target.lon);
 
-                        // Now save this data.
-                        var index = (Math.floor(Math.floor(bearing + 0.5) / bucketDegreeIncrement)) % Math.max(buckets1.length, buckets2.length);
-                        if (targetName == "gpx1") {
-                            buckets1[index].push(speedKnots);
-                        } else {
-                            buckets2[index].push(speedKnots);
-                        }
-
-                        // Done, on to the next.
-                        break;
+                    // Now save this data.
+                    var index = (Math.floor(Math.floor(bearing + 0.5) / bucketDegreeIncrement)) % Math.max(buckets1.length, buckets2.length);
+                    if (targetName == "gpx1") {
+                        buckets1[index].push(speedKnots);
+                    } else {
+                        buckets2[index].push(speedKnots);
                     }
-                    distance++;
-                }
-            } catch (e) {
-                console.warn(e);
-                // Whatever, we busted the end of the array, go on to the next one.
-                continue;
-            }
 
+                    // Done, on to the next.
+                    break;
+                }
+                distance++;
+            }
         }
 
         postProcess(targetName);
