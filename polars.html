@@ -78,12 +78,16 @@
 
         document.getElementById("bucket_size").addEventListener("change", function() {
             bucketDegreeIncrement = Math.floor(document.getElementById("bucket_size").value);
+            initBucketsAndSpeeds(1);
+            initBucketsAndSpeeds(2);
             loadComplete("gpx1");
             loadComplete("gpx2");
         }, false);
 
         document.getElementById("seconds_course").addEventListener("change", function() {
             directionTimeIntervalSecs = Math.floor(document.getElementById("seconds_course").value);
+            initBucketsAndSpeeds(1);
+            initBucketsAndSpeeds(2);
             loadComplete("gpx1");
             loadComplete("gpx2");
         }, false);
@@ -92,19 +96,27 @@
     function loadComplete(targetName) {
         var trks;
         if (targetName == "gpx1") {
-            trks = gpx1.getElementsByTagName("trk");
+            if (gpx1) {
+                trks = gpx1.getElementsByTagName("trk");
+            }
             initBucketsAndSpeeds(1);
         } else {
-            trks = gpx2.getElementsByTagName("trk");
+            if (gpx2) {
+                trks = gpx2.getElementsByTagName("trk");
+            }
             initBucketsAndSpeeds(2);
         }
-        if (trks.length !== 0 && trks.length !== 1) {
-            console.warn("Unexpected number of tracks");
-            return;
+        if (!trks) {
+            return
         }
         if (trks.length === 0) {
             return;
         }
+        if (trks.length !== 1) {
+            console.warn("Unexpected number of tracks");
+            return;
+        }
+
         var trksegs = trks[0].getElementsByTagName("trkseg");
         if (trks.length > 1) {
             console.warn("Unexpected number of track segments, only using the first one.");
