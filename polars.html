@@ -91,6 +91,14 @@
             loadComplete("gpx1");
             loadComplete("gpx2");
         }, false);
+
+        document.getElementById("secondary_offset_degrees").addEventListener("change", function() {
+            secondaryAdjustment = parseFloat(document.getElementById("secondary_offset_degrees").value);
+            initBucketsAndSpeeds(1);
+            initBucketsAndSpeeds(2);
+            loadComplete("gpx1");
+            loadComplete("gpx2");
+        }, false);
     }
 
     function loadComplete(targetName) {
@@ -281,6 +289,10 @@
 
         // Actually draw the main polar shape. We do this first so the labels go over it.
         for (var outline = 0; outline < 2; outline++) {
+            if (outline == 1) {
+                angle += secondaryAdjustment = parseFloat(document.getElementById("secondary_offset_degrees").value);
+            }
+
             var bestSpeeds;
             if (outline == 0) {
                 bestSpeeds = bestSpeeds1;
@@ -405,6 +417,9 @@
 
 </script>
 <style type="text/css">
+input[type=number] {
+  width: 60px;
+}
 html {
     font-family: sans-serif;
 }
@@ -549,6 +564,8 @@ input[type=range]:focus::-ms-fill-upper {
             <input type="number" id="bucket_size" min="1" value="3" max="6"></input> Degrees per segment (integers, 1-6)
             <br>
             <input type="number" id="seconds_course" min="1" value="3" max="9"></input> Minimum seconds on course to count (integers, 1-9)
+            <br>
+            <input type="number" id="secondary_offset_degrees" min="-180" value="0" max="180" step="0.5"></input> Adjustment of secondary track, in degrees (-180 to 180)
         </div>
     </div>
     <div id="wind_angle">
