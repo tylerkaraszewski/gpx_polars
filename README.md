@@ -7,7 +7,7 @@ The tool can be used online here: [http://www.tylerkaraszewski.com/polars.html](
 
 This will output graphs like the following:
 
-<img width="604" alt="Screen Shot 2019-04-22 at 1 08 01 PM" src="https://user-images.githubusercontent.com/705000/56525371-bce3e200-64ff-11e9-9cbf-1e700bbed82b.png">
+<img width="603" alt="Screen Shot 2019-04-22 at 1 13 18 PM" src="https://user-images.githubusercontent.com/705000/56525875-72af3080-6500-11e9-930f-dfb879552e69.png">
 
 Use the slider at the top to set the wind direction. The blue area indicates boatspeed. The red area indicates VMG. The numbers are speeds, in knots (note that each number corresponds to the ring just *outside* the number. Use the innermost ring (2 kts) as reference if you get confused.
 
