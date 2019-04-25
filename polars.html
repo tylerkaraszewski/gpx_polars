@@ -3,8 +3,12 @@
 <head>
 <meta charset="utf-8">
 <title>GPX to Polars</title>
+<script type="text/javascript" src="ant/decode.js"></script>
 <script type="text/javascript">
     var gpx1, gpx2;
+
+    // Set up the compiled C++ FIT file decoder.
+    decode_fit = Module.cwrap('decode_fit', 'string', ['number', 'array'])
 
     // Use integers between 1 and 6, inclusive.
     var bucketDegreeIncrement = 3;
@@ -50,18 +54,40 @@
             var reader = new FileReader();
             reader.onload = function() {
                 try {
+                    var gpxString;
+                    // If reader.result is an ArrayBuffer, this is a FIT file.
+                    if (reader.result instanceof ArrayBuffer) {
+                        const data = new Uint8Array(reader.result);
+                        gpxString = decode_fit(data.length, data);
+                    } else {
+                        // Otherwise, it should be raw GPX.
+                        gpxString = reader.result;
+                    }
+
+                    // Now that we have GPX data, we can parse it.
                     var parser = new DOMParser();
                     if (e.target.id == "gpx1") {
-                        gpx1 = parser.parseFromString(reader.result, "application/xml");
+                        gpx1 = parser.parseFromString(gpxString, "application/xml");
                     } else {
-                        gpx2 = parser.parseFromString(reader.result, "application/xml");
+                        gpx2 = parser.parseFromString(gpxString, "application/xml");
                     }
+
+
                     loadComplete(e.target.id);
                 } catch (e) {
                     console.warn(e);
                 }
             };
-            reader.readAsText(e.target.files[0]);
+            if (e.target.files[0].name.match(/\.fit$/i)) {
+                // FIT files.
+                reader.readAsArrayBuffer(e.target.files[0]);
+            } else if (e.target.files[0].name.match(/\.gpx$/i)) {
+                // GPX files.
+                reader.readAsText(e.target.files[0]);
+            } else {
+                // Anything else. (assume GPX)
+                reader.readAsText(e.target.files[0]);
+            }
         }
 
         document.getElementById("advanced_settings_toggle").addEventListener("click", function() {
@@ -155,8 +181,17 @@
             var lon = parseFloat(current.getAttribute("lon"));
             var time;
             try {
-                // TODO: This is apparently frowned upon, but it's working with Garmin's date stamps and my Firefox.
-                time = Date.parse(current.getElementsByTagName("time")[0].innerHTML);
+                // First, try and parse it as an integer. If this is a 4-digit number, it's the year portion of a
+                // string, and we'll do over and parse the whole string. Otherwise, it's a unix timestamp that we
+                // extracted from a FIT file.
+                var parsedTime = parseInt(current.getElementsByTagName("time")[0].innerHTML);
+                if (parsedTime > 10000) {
+                    time = parsedTime * 1000;
+                } else {
+                    // TODO: This is apparently frowned upon, but it's working with Garmin's date stamps and
+                    // Firefox/Chrome just fine.
+                    time = Date.parse(current.getElementsByTagName("time")[0].innerHTML);
+                }
             } catch (e) {
                 console.warn("Couldn't parse time for element, skipping.", current);
                 current = current.nextElementSibling;
@@ -426,6 +461,10 @@ html {
 .hidden {
     display: none;
 }
+.note {
+    margin-top: 16px;
+    font-size: 12px;
+}
 #canvas {
     width: 600px;
     height: 600px;
@@ -556,9 +595,10 @@ input[type=range]:focus::-ms-fill-upper {
 </head>
 <body>
     <div>
-         <div class="gpx_label">Primary GPX file (drawn in solid colors)</div><input type="file" id="gpx1">
+         <div class="gpx_label">Primary GPX/FIT file (drawn in solid colors)</div><input type="file" id="gpx1">
         <br>
-        <div class="gpx_label">Secondary GPX file (drawn in dotted lines)</div> <input type="file" id="gpx2"> 
+        <div class="gpx_label">Secondary GPX/FIT file (drawn in dotted lines)</div> <input type="file" id="gpx2"> 
+        <div class="note">*Note: FIT file support is experimental. If you have problems with a FIT file, please let me know!</div>
         <div class="gpx_label" id="advanced_settings_toggle">Advanced Settings [+]</div>
         <div class="advanced_settings" id="advanced_settings" style="display:none">
             <input type="number" id="bucket_size" min="1" value="3" max="6"></input> Degrees per segment (integers, 1-6)
