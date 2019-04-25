@@ -2,7 +2,13 @@ FIT Support Infrastructure
 ==========================
 
 After a request for FIT file support, I added did some digging as to what would be required for that, and the contents
-of this directory are what I've come up with. First let's start with an explanation of the directory contents.
+of this directory are what I've come up with.
+
+All of this is fairly experimental, but seems to work fine in both Chrome and Firefox (only browsers tested so far).
+Please report any bugs that you find with FIT support. If you try and set this up yourself, you may find that setting
+up the Emscripten environment is the hardest part, but they have pretty good docs on that. Good luck!
+
+Let's go through the contents of this directory with some explanations:
 
 CPP
 ---
@@ -14,7 +20,7 @@ Makefile
 --------
 
 The Makefile is used to build the CPP files into the JS library we use for fit support. This is done with
-[emscripten](https://emscripten.org), and will output two files: `decode.js` and `decode.wasm`.
+[Emscripten](https://emscripten.org), and will output two files: `decode.js` and `decode.wasm`.
 
 bytebuf.(c|h)pp
 ---------------
@@ -27,11 +33,7 @@ of this code.
 decode.cpp
 ----------
 
-This implements and exports code that accepts a `Uint8Array` from javascript, runs it through the standard FIT SDK
+This implements and exports code that accepts a `Uint8Array` from JavaScript, runs it through the standard FIT SDK
 parsing functions, and outputs a plain text GPX file. This text file is then parsed into a DOM Document in JavaScript
 exactly (well, nearly) as if the GPX file had been uploaded directly. This only attempts to extract basic data from the
 FIT file - latitude, longitude, and time.
-
-All of this is fairly experimental, but seems to work fine in both Chrome and Firefox (only browsers tested so far).
-Please report any bugs that you find with FIT support. If you try and set this up yourself, you may find that setting
-up the emscripten environment is the hardest part, but they have pretty good docs on that. Good luck!
