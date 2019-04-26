@@ -312,9 +312,12 @@
         }
         var ctx = canvas.getContext('2d');
 
-        // Save in the default, just created stated.
+        // Fill with white, restore, and save in "clean" state.
         ctx.save();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        ctx.save();
 
         // Scale the canvas to fit a unit circle. 1200 is the magic number specified in the size/width of the element.
         ctx.scale(1200 / 2, 1200 / 2);
