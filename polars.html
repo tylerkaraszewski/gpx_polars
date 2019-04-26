@@ -304,7 +304,11 @@
             canvas.width = 600 * window.devicePixelRatio;
             canvas.height = 600 * window.devicePixelRatio;
             canvas.id = 'canvas';
-            document.getElementById('canvas_container').appendChild(canvas);
+            var saveLink = document.createElement("a");
+            saveLink.download = "gpx_polars_graph.png";
+            saveLink.id = "save_download";
+            document.getElementById('canvas_container').appendChild(saveLink);
+            saveLink.appendChild(canvas);
         }
         var ctx = canvas.getContext('2d');
 
@@ -419,6 +423,22 @@
 
         // Put it back to the original.
         ctx.restore();
+
+        // Update the save link with the new data.
+        document.getElementById('save_download').href = canvas.toDataURL("image/png");
+        var name1 = document.getElementById('gpx1').files.length ? document.getElementById('gpx1').files[0].name : null;
+        var name2 = document.getElementById('gpx2').files.length ? document.getElementById('gpx2').files[0].name : null;
+        var name = "";
+        if (name1) {
+            name += name1.replace(/\..+$/, "");
+        }
+        if (name1 && name2) {
+            name += "_";
+        }
+        if (name2) {
+            name += name2.replace(/\..+$/, "");
+        }
+        document.getElementById('save_download').download = name + ".png";
     }
 
     // Copied from: https://www.movable-type.co.uk/scripts/latlong.html
@@ -437,6 +457,7 @@
 
         return d;
     }
+
     function getBearingInDegrees(lat1, lon1, lat2, lon2) {
         var φ1 = lat1 * (Math.PI / 180);
         var λ1 = lon1 * (Math.PI / 180);
@@ -613,6 +634,6 @@ input[type=range]:focus::-ms-fill-upper {
         <span>0</span> <input id="angle" type="range" min="0" max="360" step="0.5"></input> <span>360</span>
         <div id="current_angle"></div>
     </div>
-    <div id="canvas_container"><canvas id="canvas" width="1200" height="1200"></canvas></div>
+    <div id="canvas_container"></div>
 </body>
 </html>
