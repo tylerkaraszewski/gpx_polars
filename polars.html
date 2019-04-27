@@ -319,9 +319,9 @@
         ctx.restore();
         ctx.save();
 
-        // Scale the canvas to fit a unit circle. 1200 is the magic number specified in the size/width of the element.
-        ctx.scale(1200 / 2, 1200 / 2);
-        ctx.lineWidth = 2 / 1200;
+        // Scale the canvas to fit a unit circle. 600 is the magic number specified in the size/width of the element.
+        ctx.scale((600 * window.devicePixelRatio) / 2, (600 * window.devicePixelRatio) / 2);
+        ctx.lineWidth = 2 / (600 * window.devicePixelRatio);
 
         // Translate it so that the origin is in the middle.
         ctx.translate(1, 1);
