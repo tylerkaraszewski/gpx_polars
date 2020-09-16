@@ -205,6 +205,27 @@
             current = current.nextElementSibling;
         }
 
+        // Compute average speed only while moving.
+        var movingSpeedThreshold = 8;
+        var totalMovingDistance = 0;
+        var totalMovingTime = 0;
+        for (var i = 0; i < parsedList.length - 1; i++) {
+            var start = parsedList[i];
+            var end = parsedList[i + 1];
+            var elapsedTime = end.time - start.time;
+            var distanceNM = distanceMeters / 1852;
+            var speedKnots = (distanceMeters / 1852) / ((elapsedTime / 1000) / (60 * 60));
+            var distanceMeters = getDistanceInMeters(start.lat, start.lon, end.lat, end.lon);
+            if (speedKnots > movingSpeedThreshold) {
+                totalMovingDistance += distanceNM;
+                totalMovingTime += elapsedTime;
+            }
+        }
+        var avgSpeendNM = Math.round(totalMovingDistance / ((totalMovingTime / 1000) / (60 * 60)) * 100) / 100;
+        console.log("Distance above " + movingSpeedThreshold + " knots speed: " +
+            (Math.round(totalMovingDistance * 100) / 100) + " NM, in " +
+            (totalMovingTime / 1000) + " seconds: " + avgSpeendNM + " knots.");
+
         // Now that we have a list of points, sort them into buckets.
         for (var i = 0; i < parsedList.length; i++) {
             current = parsedList[i];
