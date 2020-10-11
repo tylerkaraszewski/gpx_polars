@@ -3,8 +3,19 @@
 <head>
 <meta charset="utf-8">
 <title>GPX to Polars</title>
+
+<!-- for google maps. -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+<script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC87ROK2fuB3HovzyQhvLyeskYk6r_isto&callback=initMap"></script>
+
+<!-- for FIT support. -->
 <script type="text/javascript" src="ant/decode.js"></script>
+
 <script type="text/javascript">
+    window.onload = function() {
+        initPolars();
+    }
+
     var gpx1, gpx2;
 
     // Set up the compiled C++ FIT file decoder.
@@ -35,8 +46,7 @@
     }
 
     // This is the best speeds for each bucket, which is the average of the top three in each bucket.
-
-    window.onload = function() {
+    function initPolars() {
         // Set up the slider.
         var angleSlider = document.getElementById("angle");
         document.getElementById("current_angle").innerHTML = "Current Angle: " + angleSlider.value;
@@ -495,7 +505,18 @@
         return (brng + 360) % 360;
     }
 
+
+    // Map stuff!
+    var map;
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: -34.397, lng: 150.644 },
+            zoom: 8
+        });
+    }
+
 </script>
+
 <style type="text/css">
 input[type=number] {
   width: 60px;
@@ -636,6 +657,21 @@ input[type=range]:focus::-ms-fill-lower {
 input[type=range]:focus::-ms-fill-upper {
   background: #74A9D8;
 }
+
+/*
+Sizing to get google maps API to work.
+r
+*/
+#map, #map_container {
+    height: 500px;
+}
+html, body {
+    height: 500px;
+    width: 667px;
+    margin: 0;
+    padding: 0;
+}
+
 </style>
 </head>
 <body>
@@ -659,5 +695,10 @@ input[type=range]:focus::-ms-fill-upper {
         <div id="current_angle"></div>
     </div>
     <div id="canvas_container"></div>
+    Map:
+    <div id="map_container">
+        <div id="map">
+        </div>
+    </div>
 </body>
 </html>
