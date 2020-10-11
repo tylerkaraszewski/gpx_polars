@@ -16,7 +16,27 @@
         initPolars();
     }
 
+    // We can feasibly load a GPX track before the map library has loaded.
+    var mapReady = false;
+    function initMap() {
+        if (initialPoint) {
+            drawMap();
+        }
+        mapReady = true;
+    }
+
+    var map;
+    function drawMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: initialPoint.lat, lng: initialPoint.lon },
+            zoom: 8
+        });
+    }
+
     var gpx1, gpx2;
+
+    // This is where we'll center our map.
+    var initialPoint;
 
     // Set up the compiled C++ FIT file decoder.
     decode_fit = Module.cwrap('decode_fit', 'string', ['number', 'array'])
@@ -173,6 +193,14 @@
         // Ok, this is hopefully usable.
         var trkseg = trksegs[0];
 
+        // Mark it as the first point for our map.
+        if (!initialPoint && trkseg.firstElementChild) {
+            initialPoint = {
+                "lat": parseFloat(trkseg.firstElementChild.getAttribute("lat")),
+                "lon": parseFloat(trkseg.firstElementChild.getAttribute("lon")),
+            };
+        }
+
         // Now we'll start iterating all of our points.
         var current = trkseg.firstElementChild;
         //var previous = null;
@@ -295,6 +323,7 @@
         }
 
         draw();
+        drawMap();
     }
 
     // https://stackoverflow.com/questions/7570808/how-do-i-calculate-the-difference-of-two-angle-measures/30887154
@@ -504,17 +533,6 @@
 
         return (brng + 360) % 360;
     }
-
-
-    // Map stuff!
-    var map;
-    function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: -34.397, lng: 150.644 },
-            zoom: 8
-        });
-    }
-
 </script>
 
 <style type="text/css">
