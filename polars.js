@@ -1,13 +1,9 @@
-// This is where we'll center our map.
-var initialPoint;
-
 // Set up the compiled C++ FIT file decoder.
 decode_fit = Module.cwrap('decode_fit', 'string', ['number', 'array'])
 
 // Use integers between 1 and 6, inclusive.
 var bucketDegreeIncrement = 3;
 var directionTimeIntervalSecs = 3;
-var bestSpeeds = [[], []];
 
 function parseTrackData(trackIndex, e) {
     try {
@@ -24,7 +20,6 @@ function parseTrackData(trackIndex, e) {
         // Now that we have GPX data, we can parse it.
         var parser = new DOMParser();
         parseDataFromXML(trackIndex, parser.parseFromString(gpxString, "application/xml"));
-        computeSpeeds(trackIndex);
         fileLoadCompleteCallback();
     } catch (e) {
         console.warn(e);
@@ -75,14 +70,6 @@ function parseDataFromXML(index, xml) {
     // Ok, this is hopefully usable.
     var trkseg = trksegs[0];
 
-    // Mark it as the first point for our map.
-    if (!initialPoint && trkseg.firstElementChild) {
-        initialPoint = {
-            "lat": parseFloat(trkseg.firstElementChild.getAttribute("lat")),
-            "lon": parseFloat(trkseg.firstElementChild.getAttribute("lon")),
-        };
-    }
-
     // Now we'll start iterating all of our points.
     var current = trkseg.firstElementChild;
     //var previous = null;
@@ -128,7 +115,7 @@ function parseDataFromXML(index, xml) {
 }
 
 function computeSpeeds(trackIndex) {
-    bestSpeeds[index] = [];
+    var bestSpeeds = [];
 
     // Compute average speed only while moving.
     var movingSpeedThreshold = 8;
@@ -193,8 +180,10 @@ function computeSpeeds(trackIndex) {
             sum += top3[j];
         }
         sum /= top3.length;
-        bestSpeeds[trackIndex].push(sum);
+        bestSpeeds.push(sum);
     }
+
+    return bestSpeeds;
 }
 
 // https://stackoverflow.com/questions/7570808/how-do-i-calculate-the-difference-of-two-angle-measures/30887154
@@ -208,6 +197,9 @@ function angleFromWind(heading, wind) {
 }
 
 function drawPolars() {
+    // Get the best speeds for both tracks.
+    var bestSpeeds = [computeSpeeds(0), computeSpeeds(1)];
+
     const DIMENSION = 400;
     // If there's no speed data (because someone dragged the slider before loading a file), there's nothing to
     if (!bestSpeeds[0].length && !bestSpeeds[1].length) {

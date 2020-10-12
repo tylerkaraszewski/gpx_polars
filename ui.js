@@ -14,7 +14,7 @@ function fileLoadCompleteCallback() {
     document.getElementById("current_angle").innerHTML = "Current Angle: " + angleSlider.value;
     angleSlider.addEventListener("change", function(){
         document.getElementById("current_angle").innerHTML = "Current Angle: " + angleSlider.value;
-        draw();
+        drawPolars();
     }, false);
 
     // Set up the file loaders.
@@ -39,25 +39,16 @@ function fileLoadCompleteCallback() {
 
     document.getElementById("bucket_size").addEventListener("change", function() {
         bucketDegreeIncrement = Math.floor(document.getElementById("bucket_size").value);
-        initBucketsAndSpeeds(1);
-        initBucketsAndSpeeds(2);
-        loadComplete("gpx1");
-        loadComplete("gpx2");
+        drawPolars();
     }, false);
 
     document.getElementById("seconds_course").addEventListener("change", function() {
         directionTimeIntervalSecs = Math.floor(document.getElementById("seconds_course").value);
-        initBucketsAndSpeeds(1);
-        initBucketsAndSpeeds(2);
-        loadComplete("gpx1");
-        loadComplete("gpx2");
+        drawPolars();
     }, false);
 
     document.getElementById("secondary_offset_degrees").addEventListener("change", function() {
         secondaryAdjustment = parseFloat(document.getElementById("secondary_offset_degrees").value);
-        initBucketsAndSpeeds(1);
-        initBucketsAndSpeeds(2);
-        loadComplete("gpx1");
-        loadComplete("gpx2");
+        drawPolars();
     }, false);
 })();
