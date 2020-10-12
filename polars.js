@@ -30,96 +30,46 @@ function initBucketsAndSpeeds(which) {
     }
 }
 
-// This is the best speeds for each bucket, which is the average of the top three in each bucket.
-function initPolars() {
-    // Set up the slider.
-    var angleSlider = document.getElementById("angle");
-    document.getElementById("current_angle").innerHTML = "Current Angle: " + angleSlider.value;
-    angleSlider.addEventListener("change", function(){
-        document.getElementById("current_angle").innerHTML = "Current Angle: " + angleSlider.value;
-        draw();
-    }, false);
-
-    // Set up the file loaders.
-    var jsonFileInput1 = document.getElementById("gpx1");
-    var jsonFileInput2 = document.getElementById("gpx2");
-    jsonFileInput1.addEventListener("change", handleFiles, false);
-    jsonFileInput2.addEventListener("change", handleFiles, false);
-    function handleFiles(e) {
-        var reader = new FileReader();
-        reader.onload = function() {
-            try {
-                var gpxString;
-                // If reader.result is an ArrayBuffer, this is a FIT file.
-                if (reader.result instanceof ArrayBuffer) {
-                    const data = new Uint8Array(reader.result);
-                    gpxString = decode_fit(data.length, data);
-                } else {
-                    // Otherwise, it should be raw GPX.
-                    gpxString = reader.result;
-                }
-
-                // Now that we have GPX data, we can parse it.
-                var parser = new DOMParser();
-                if (e.target.id == "gpx1") {
-                    gpx1 = parser.parseFromString(gpxString, "application/xml");
-                } else {
-                    gpx2 = parser.parseFromString(gpxString, "application/xml");
-                }
-
-
-                loadComplete(e.target.id);
-            } catch (e) {
-                console.warn(e);
-            }
-        };
-        if (e.target.files[0].name.match(/\.fit$/i)) {
-            // FIT files.
-            reader.readAsArrayBuffer(e.target.files[0]);
-        } else if (e.target.files[0].name.match(/\.gpx$/i)) {
-            // GPX files.
-            reader.readAsText(e.target.files[0]);
+function parseDataFromTrack(targetElement, e) {
+    try {
+        var gpxString;
+        // If e.target.result is an ArrayBuffer, this is a FIT file.
+        if (e.target.result instanceof ArrayBuffer) {
+            const data = new Uint8Array(e.target.result);
+            gpxString = decode_fit(data.length, data);
         } else {
-            // Anything else. (assume GPX)
-            reader.readAsText(e.target.files[0]);
+            // Otherwise, it should be raw GPX.
+            gpxString = e.target.result;
         }
+
+        // Now that we have GPX data, we can parse it.
+        var parser = new DOMParser();
+        if (targetElement.id == "gpx1") {
+            gpx1 = parser.parseFromString(gpxString, "application/xml");
+        } else {
+            gpx2 = parser.parseFromString(gpxString, "application/xml");
+        }
+        loadComplete(targetElement.id);
+    } catch (e) {
+        console.warn(e);
     }
+};
 
-    document.getElementById("advanced_settings_toggle").addEventListener("click", function() {
-        if (document.getElementById("advanced_settings").style.display == "") {
-            document.getElementById("advanced_settings").style.display = "none";
-            document.getElementById("advanced_settings_toggle").innerHTML =
-            document.getElementById("advanced_settings_toggle").innerHTML.replace(/\-/, "+");
-        } else {
-            document.getElementById("advanced_settings").style.display = "";
-            document.getElementById("advanced_settings_toggle").innerHTML =
-            document.getElementById("advanced_settings_toggle").innerHTML.replace(/\+/, "-");
-        }
-    }, false);
-
-    document.getElementById("bucket_size").addEventListener("change", function() {
-        bucketDegreeIncrement = Math.floor(document.getElementById("bucket_size").value);
-        initBucketsAndSpeeds(1);
-        initBucketsAndSpeeds(2);
-        loadComplete("gpx1");
-        loadComplete("gpx2");
-    }, false);
-
-    document.getElementById("seconds_course").addEventListener("change", function() {
-        directionTimeIntervalSecs = Math.floor(document.getElementById("seconds_course").value);
-        initBucketsAndSpeeds(1);
-        initBucketsAndSpeeds(2);
-        loadComplete("gpx1");
-        loadComplete("gpx2");
-    }, false);
-
-    document.getElementById("secondary_offset_degrees").addEventListener("change", function() {
-        secondaryAdjustment = parseFloat(document.getElementById("secondary_offset_degrees").value);
-        initBucketsAndSpeeds(1);
-        initBucketsAndSpeeds(2);
-        loadComplete("gpx1");
-        loadComplete("gpx2");
-    }, false);
+function loadTrackFromFile(e) {
+    var reader = new FileReader();
+    reader.onload = function(evt) {
+        parseDataFromTrack(e.target, evt);
+    };
+    if (e.target.files[0].name.match(/\.fit$/i)) {
+        // FIT files.
+        reader.readAsArrayBuffer(e.target.files[0]);
+    } else if (e.target.files[0].name.match(/\.gpx$/i)) {
+        // GPX files.
+        reader.readAsText(e.target.files[0]);
+    } else {
+        // Anything else. (assume GPX)
+        reader.readAsText(e.target.files[0]);
+    }
 }
 
 function loadComplete(targetName) {
@@ -207,6 +157,7 @@ function loadComplete(targetName) {
 
         current = current.nextElementSibling;
     }
+    console.log(parsedList);
 
     // Compute average speed only while moving.
     var movingSpeedThreshold = 8;
