@@ -10,6 +10,7 @@
 <script defer src="ant/decode.js"></script>
 <script defer src="polars.js"></script>
 <script defer src="map.js"></script>
+<script defer src="util.js"></script>
 <script defer src="ui.js"></script>
 
 </head>
@@ -29,7 +30,7 @@
                 <input type="number" id="secondary_offset_degrees" min="-180" value="0" max="180" step="0.5"></input> Adjustment of secondary track, in degrees (-180 to 180)
             </div>
             <div id="wind_angle">
-                <h1>Wind Angle (in degrees, default is south)</h1>
+                <h1>Wind Angle (degrees, default south)</h1>
                 <span>0</span> <input id="angle" type="range" min="0" max="360" step="0.5"></input> <span>360</span>
                 <div id="current_angle"></div>
             </div>
