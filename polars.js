@@ -349,3 +349,4 @@ function drawPolars() {
     }
     document.getElementById('save_download').download = name + ".png";
 }
+
