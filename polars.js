@@ -302,6 +302,7 @@ function angleFromWind(heading, wind) {
 }
 
 function draw() {
+    const DIMENSION = 400;
     // If there's no speed data (because someone dragged the slider before loading a file), there's nothing to
     if (!bestSpeeds1.length && !bestSpeeds2.length) {
         return;
@@ -326,8 +327,8 @@ function draw() {
     var canvas = document.getElementById('canvas');
     if (!canvas) {
         canvas = document.createElement('canvas');
-        canvas.width = 600 * window.devicePixelRatio;
-        canvas.height = 600 * window.devicePixelRatio;
+        canvas.width = DIMENSION * window.devicePixelRatio;
+        canvas.height = DIMENSION * window.devicePixelRatio;
         canvas.id = 'canvas';
         var saveLink = document.createElement("a");
         saveLink.download = "gpx_polars_graph.png";
@@ -344,9 +345,9 @@ function draw() {
     ctx.restore();
     ctx.save();
 
-    // Scale the canvas to fit a unit circle. 600 is the magic number specified in the size/width of the element.
-    ctx.scale((600 * window.devicePixelRatio) / 2, (600 * window.devicePixelRatio) / 2);
-    ctx.lineWidth = 2 / (600 * window.devicePixelRatio);
+    // Scale the canvas to fit a unit circle. DIMENSION is the magic number specified in the size/width of the element.
+    ctx.scale((DIMENSION * window.devicePixelRatio) / 2, (DIMENSION * window.devicePixelRatio) / 2);
+    ctx.lineWidth = 2 / (DIMENSION * window.devicePixelRatio);
 
     // Translate it so that the origin is in the middle.
     ctx.translate(1, 1);

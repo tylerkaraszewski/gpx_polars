@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>GPX to Polars</title>
+<title>GPX Polars</title>
 
 <script defer src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
 <script defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDZ6hHfjfKZkT5JeZwAbdaHTp0KClkIHzU"></script>
@@ -10,188 +10,36 @@
 <script defer src="polars.js"></script>
 <script defer src="map.js"></script>
 <script defer src="ui.js"></script>
+<link rel="stylesheet" href="polars.css"></link>
 
-<style type="text/css">
-input[type=number] {
-  width: 60px;
-}
-html {
-    font-family: sans-serif;
-}
-.hidden {
-    display: none;
-}
-.note {
-    margin-top: 16px;
-    font-size: 12px;
-}
-#canvas {
-    width: 600px;
-    height: 600px;
-}
-#wind_angle h1 {
-    font-weight: bold;
-    font-size: 14px;
-    margin: 0;
-    margin-top: 16px;
-    padding: 0;
-}
-#wind_angle > span {
-    font-size: 16px;
-    display: inline-box;
-    position: relative;
-    bottom: 11px;
-}
-.gpx_label {
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 2px;
-    margin-top: 16px;
-}
-
-#advanced_settings {
-    padding: 6px;
-    border: 1px solid black;
-    background-color: #EEE;
-    max-width: 600px;
-}
-#advanced_settings_toggle:hover {
-    cursor: pointer;
-}
-/*
-All this shit taken from:
-https://www.cssportal.com/style-input-range/
-*/
-input[type=range] {
-  height: 34px;
-  -webkit-appearance: none;
-  margin: 0;
-  width: 600px;
-}
-input[type=range]:focus {
-  outline: none;
-}
-input[type=range]::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 11px;
-  cursor: pointer;
-  animate: 0.2s;
-  box-shadow: 1px 1px 1px #000000;
-  background: #74A9D8;
-  border-radius: 1px;
-  border: 0px solid #010101;
-}
-input[type=range]::-webkit-slider-thumb {
-  box-shadow: 1px 1px 1px #000031;
-  border: 1px solid #00001E;
-  height: 26px;
-  width: 26px;
-  border-radius: 15px;
-  background: #FFFFFF;
-  cursor: pointer;
-  -webkit-appearance: none;
-  margin-top: -8px;
-}
-input[type=range]:focus::-webkit-slider-runnable-track {
-  background: #74A9D8;
-}
-input[type=range]::-moz-range-track {
-  width: 100%;
-  height: 11px;
-  cursor: pointer;
-  animate: 0.2s;
-  box-shadow: 1px 1px 1px #000000;
-  background: #74A9D8;
-  border-radius: 1px;
-  border: 0px solid #010101;
-}
-input[type=range]::-moz-range-thumb {
-  box-shadow: 1px 1px 1px #000031;
-  border: 1px solid #00001E;
-  height: 26px;
-  width: 26px;
-  border-radius: 15px;
-  background: #FFFFFF;
-  cursor: pointer;
-}
-input[type=range]::-ms-track {
-  width: 100%;
-  height: 11px;
-  cursor: pointer;
-  animate: 0.2s;
-  background: transparent;
-  border-color: transparent;
-  color: transparent;
-}
-input[type=range]::-ms-fill-lower {
-  background: #74A9D8;
-  border: 0px solid #010101;
-  border-radius: 2px;
-  box-shadow: 1px 1px 1px #000000;
-}
-input[type=range]::-ms-fill-upper {
-  background: #74A9D8;
-  border: 0px solid #010101;
-  border-radius: 2px;
-  box-shadow: 1px 1px 1px #000000;
-}
-input[type=range]::-ms-thumb {
-  margin-top: 1px;
-  box-shadow: 1px 1px 1px #000031;
-  border: 1px solid #00001E;
-  height: 26px;
-  width: 26px;
-  border-radius: 15px;
-  background: #FFFFFF;
-  cursor: pointer;
-}
-input[type=range]:focus::-ms-fill-lower {
-  background: #74A9D8;
-}
-input[type=range]:focus::-ms-fill-upper {
-  background: #74A9D8;
-}
-
-/*
-Sizing to get google maps API to work.
-r
-*/
-#map, #map_container {
-    height: 500px;
-}
-html, body {
-    height: 500px;
-    width: 667px;
-    margin: 0;
-    padding: 0;
-}
-
-</style>
 </head>
 <body>
-    <div>
-         <div class="gpx_label">Primary GPX/FIT file (drawn in solid colors)</div><input type="file" id="gpx1">
-        <br>
-        <div class="gpx_label">Secondary GPX/FIT file (drawn in dotted lines)</div> <input type="file" id="gpx2"> 
-        <div class="note">*Note: FIT file support is experimental. If you have problems with a FIT file, please let me know!</div>
-        <div class="gpx_label" id="advanced_settings_toggle">Advanced Settings [+]</div>
-        <div class="advanced_settings" id="advanced_settings" style="display:none">
-            <input type="number" id="bucket_size" min="1" value="3" max="6"></input> Degrees per segment (integers, 1-6)
-            <br>
-            <input type="number" id="seconds_course" min="1" value="3" max="9"></input> Minimum seconds on course to count (integers, 1-9)
-            <br>
-            <input type="number" id="secondary_offset_degrees" min="-180" value="0" max="180" step="0.5"></input> Adjustment of secondary track, in degrees (-180 to 180)
+    <div class="row">
+        <div class="main_section" id="controls">
+            <div class="gpx_label">
+                <span title="GPX or FIT format">Track:</span> <input type="file" id="gpx1">
+                <span title="Will display on the polar diagram in dotted lines">Comparison:</span> <input type="file" id="gpx2">
+            </div>
+            <div class="gpx_label" id="advanced_settings_toggle">Advanced Settings [+]</div>
+            <div class="advanced_settings" id="advanced_settings" style="display:none">
+                <input type="number" id="bucket_size" min="1" value="3" max="6"></input> Degrees per segment (integers, 1-6)
+                <br>
+                <input type="number" id="seconds_course" min="1" value="3" max="9"></input> Minimum seconds on course to count (integers, 1-9)
+                <br>
+                <input type="number" id="secondary_offset_degrees" min="-180" value="0" max="180" step="0.5"></input> Adjustment of secondary track, in degrees (-180 to 180)
+            </div>
+            <div id="wind_angle">
+                <h1>Wind Angle (in degrees, default is south)</h1>
+                <span>0</span> <input id="angle" type="range" min="0" max="360" step="0.5"></input> <span>360</span>
+                <div id="current_angle"></div>
+            </div>
         </div>
+        <div class="main_section" id="canvas_container"></div>
     </div>
-    <div id="wind_angle">
-        <h1>Wind Angle (in degrees, default is south)</h1>
-        <span>0</span> <input id="angle" type="range" min="0" max="360" step="0.5"></input> <span>360</span>
-        <div id="current_angle"></div>
-    </div>
-    <div id="canvas_container"></div>
-    Map:
-    <div id="map_container">
-        <div id="map">
+    <div class="row">
+        <div class="main_section" id="map_container">
+            <div id="map">
+            </div>
         </div>
     </div>
 </body>
