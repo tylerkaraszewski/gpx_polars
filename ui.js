@@ -3,6 +3,11 @@
 // Global array of tracks. Can have two tracks.
 var tracks = [[], []];
 
+function fileLoadCompleteCallback() {
+    drawPolars();
+    drawMap();
+}
+
 (function initPage() {
     // Set up the slider.
     var angleSlider = document.getElementById("angle");

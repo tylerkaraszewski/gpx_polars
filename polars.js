@@ -1,5 +1,3 @@
-var gpx1, gpx2;
-
 // This is where we'll center our map.
 var initialPoint;
 
@@ -9,28 +7,9 @@ decode_fit = Module.cwrap('decode_fit', 'string', ['number', 'array'])
 // Use integers between 1 and 6, inclusive.
 var bucketDegreeIncrement = 3;
 var directionTimeIntervalSecs = 3;
-var buckets1 = [];
-var buckets2 = [];
-var bestSpeeds1 = [];
-var bestSpeeds2 = [];
+var bestSpeeds = [[], []];
 
-function initBucketsAndSpeeds(which) {
-    if (which == 1) {
-        buckets1 = [];
-        bestSpeeds1 = [];
-        for (var i = 0; i < (360 / bucketDegreeIncrement); i++) {
-            buckets1.push([]);
-        }
-    } else {
-        buckets2 = [];
-        bestSpeeds2 = [];
-        for (var i = 0; i < (360 / bucketDegreeIncrement); i++) {
-            buckets2.push([]);
-        }
-    }
-}
-
-function parseDataFromTrack(targetElement, e) {
+function parseTrackData(trackIndex, e) {
     try {
         var gpxString;
         // If e.target.result is an ArrayBuffer, this is a FIT file.
@@ -44,12 +23,9 @@ function parseDataFromTrack(targetElement, e) {
 
         // Now that we have GPX data, we can parse it.
         var parser = new DOMParser();
-        if (targetElement.id == "gpx1") {
-            gpx1 = parser.parseFromString(gpxString, "application/xml");
-        } else {
-            gpx2 = parser.parseFromString(gpxString, "application/xml");
-        }
-        loadComplete(targetElement.id);
+        parseDataFromXML(trackIndex, parser.parseFromString(gpxString, "application/xml"));
+        computeSpeeds(trackIndex);
+        fileLoadCompleteCallback();
     } catch (e) {
         console.warn(e);
     }
@@ -58,7 +34,8 @@ function parseDataFromTrack(targetElement, e) {
 function loadTrackFromFile(e) {
     var reader = new FileReader();
     reader.onload = function(evt) {
-        parseDataFromTrack(e.target, evt);
+        parseTrackData(e.target.id === "gpx1" ? 0 : 1, evt);
+        fileLoadCompleteCallback();
     };
     if (e.target.files[0].name.match(/\.fit$/i)) {
         // FIT files.
@@ -72,19 +49,9 @@ function loadTrackFromFile(e) {
     }
 }
 
-function loadComplete(targetName) {
+function parseDataFromXML(index, xml) {
     var trks;
-    if (targetName == "gpx1") {
-        if (gpx1) {
-            trks = gpx1.getElementsByTagName("trk");
-        }
-        initBucketsAndSpeeds(1);
-    } else {
-        if (gpx2) {
-            trks = gpx2.getElementsByTagName("trk");
-        }
-        initBucketsAndSpeeds(2);
-    }
+    var trks = xml.getElementsByTagName("trk");
     if (!trks) {
         return
     }
@@ -157,15 +124,19 @@ function loadComplete(targetName) {
 
         current = current.nextElementSibling;
     }
-    console.log(parsedList);
+    tracks[index] = parsedList;
+}
+
+function computeSpeeds(trackIndex) {
+    bestSpeeds[index] = [];
 
     // Compute average speed only while moving.
     var movingSpeedThreshold = 8;
     var totalMovingDistance = 0;
     var totalMovingTime = 0;
-    for (var i = 0; i < parsedList.length - 1; i++) {
-        var start = parsedList[i];
-        var end = parsedList[i + 1];
+    for (var i = 0; i < tracks[trackIndex].length - 1; i++) {
+        var start = tracks[trackIndex][i];
+        var end = tracks[trackIndex][i + 1];
         var elapsedTime = end.time - start.time;
         var distanceNM = distanceMeters / 1852;
         var speedKnots = (distanceMeters / 1852) / ((elapsedTime / 1000) / (60 * 60));
@@ -181,11 +152,15 @@ function loadComplete(targetName) {
         (totalMovingTime / 1000) + " seconds: " + avgSpeendNM + " knots.");
 
     // Now that we have a list of points, sort them into buckets.
-    for (var i = 0; i < parsedList.length; i++) {
-        current = parsedList[i];
+    var buckets = [];
+    for (var i = 0; i < (360 / bucketDegreeIncrement); i++) {
+        buckets.push([]);
+    }
+    for (var i = 0; i < tracks[trackIndex].length; i++) {
+        current = tracks[trackIndex][i];
         var distance = 1;
-        while (i + distance < parsedList.length) {
-            target = parsedList[i + distance];
+        while (i + distance < tracks[trackIndex].length) {
+            target = tracks[trackIndex][i + distance];
             if (target.time >= current.time + directionTimeIntervalSecs * 1000) {
                 // It's been enough time to count this segment.
                 var elapsedTime = target.time - current.time;
@@ -195,12 +170,8 @@ function loadComplete(targetName) {
                 var bearing = getBearingInDegrees(current.lat, current.lon, target.lat, target.lon);
 
                 // Now save this data.
-                var index = (Math.floor(Math.floor(bearing + 0.5) / bucketDegreeIncrement)) % Math.max(buckets1.length, buckets2.length);
-                if (targetName == "gpx1") {
-                    buckets1[index].push(speedKnots);
-                } else {
-                    buckets2[index].push(speedKnots);
-                }
+                var index = (Math.floor(Math.floor(bearing + 0.5) / bucketDegreeIncrement)) % buckets.length;
+                buckets[index].push(speedKnots);
 
                 // Done, on to the next.
                 break;
@@ -209,17 +180,8 @@ function loadComplete(targetName) {
         }
     }
 
-    postProcess(targetName);
-}
-
-function postProcess(targetName) {
-    for (var i = 0; i < buckets1.length; i++) {
-        var array;
-        if (targetName == "gpx1") {
-            array = buckets1[i];
-        } else {
-            array = buckets2[i];
-        }
+    for (var i = 0; i < buckets.length; i++) {
+        var array = buckets[i];
         array.sort(function(a, b){return b - a});
 
         var top3 = array.slice(0, 3);
@@ -231,15 +193,8 @@ function postProcess(targetName) {
             sum += top3[j];
         }
         sum /= top3.length;
-        if (targetName == "gpx1") {
-            bestSpeeds1.push(sum);
-        } else {
-            bestSpeeds2.push(sum);
-        }
+        bestSpeeds[trackIndex].push(sum);
     }
-
-    draw();
-    drawMap();
 }
 
 // https://stackoverflow.com/questions/7570808/how-do-i-calculate-the-difference-of-two-angle-measures/30887154
@@ -252,10 +207,10 @@ function angleFromWind(heading, wind) {
     return angleOffTheWind;
 }
 
-function draw() {
+function drawPolars() {
     const DIMENSION = 400;
     // If there's no speed data (because someone dragged the slider before loading a file), there's nothing to
-    if (!bestSpeeds1.length && !bestSpeeds2.length) {
+    if (!bestSpeeds[0].length && !bestSpeeds[1].length) {
         return;
     }
 
@@ -263,17 +218,8 @@ function draw() {
     var angle = parseFloat(document.getElementById("angle").value);
 
     // Find the highest speed.
-    var count = Math.max(bestSpeeds1.length, bestSpeeds2.length);
-    var max = 0;
-    for (var i = 0; i < count; i++) {
-        if (bestSpeeds1.length && bestSpeeds1[i] > max) {
-            max = bestSpeeds1[i];
-        }
-        if (bestSpeeds2.length && bestSpeeds2[i] > max) {
-            max = bestSpeeds2[i];
-        }
-    }
-    max = Math.ceil(max) + 2;
+    var count = Math.max(bestSpeeds[0].length, bestSpeeds[1].length);
+    var max = Math.ceil(bestSpeeds[0].concat(bestSpeeds[1]).reduce(function(a, b) { return Math.max(a, b); })) + 2;
 
     var canvas = document.getElementById('canvas');
     if (!canvas) {
@@ -312,23 +258,24 @@ function draw() {
             angle += secondaryAdjustment = parseFloat(document.getElementById("secondary_offset_degrees").value);
         }
 
-        var bestSpeeds;
+        var bestSpeed;
         if (outline == 0) {
-            bestSpeeds = bestSpeeds1;
+            bestSpeed = bestSpeeds[0];
         } else {
-            bestSpeeds = bestSpeeds2;
+            bestSpeed = bestSpeeds[1];
         }
-        if (bestSpeeds.length === 0) {
-            // Skip any undefined sections.
+
+        // Skip any undefined sections.
+        if (bestSpeed.length === 0) {
             continue;
         }
         ctx.save()
         ctx.rotate((Math.PI / 180) * (-0.5 * bucketDegreeIncrement + angle));
         ctx.beginPath();
-        ctx.moveTo(0, bestSpeeds[0] / max);
+        ctx.moveTo(0, bestSpeed[0] / max);
         for (var i = 1; i < count; i++) {
             ctx.rotate((Math.PI / 180) * -1 * bucketDegreeIncrement);
-            ctx.lineTo(0, bestSpeeds[i] / max);
+            ctx.lineTo(0, bestSpeed[i] / max);
         }
         ctx.closePath();
         if (outline == 0) {
@@ -348,11 +295,11 @@ function draw() {
         ctx.rotate((Math.PI / 180) * (-0.5 * bucketDegreeIncrement + angle));
         ctx.beginPath();
         var compassAngle = 0.5 * bucketDegreeIncrement;
-        ctx.moveTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
+        ctx.moveTo(0, (bestSpeed[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
         for (var i = 1; i < count; i++) {
             ctx.rotate((Math.PI / 180) * -1 * bucketDegreeIncrement);
             compassAngle += bucketDegreeIncrement;
-            ctx.lineTo(0, (bestSpeeds[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
+            ctx.lineTo(0, (bestSpeed[i] / max) * Math.cos((Math.PI / 180) * angleFromWind(compassAngle, angle)));
         }
         ctx.closePath();
         if (outline == 0) {
